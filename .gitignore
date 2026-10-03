@@ -1,0 +1,19 @@
+# CMake build output
+
+/build/
+/cmake-build-*/
+
+#compiled files
+*.o
+*.a
+*.so
+*.dylib
+*.exe
+
+#editor files
+*.swp
+*.swo
+*~
+
+.DS_Store
+.env
