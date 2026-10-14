@@ -228,7 +228,12 @@ std::vector<std::uint8_t> pack_mqtt_packet(const mqtt_packet& packet,
         );
 
 [[nodiscard]] 
-constexpr mqtt_header mqtt_packet_header(std::uint8_t byte);
+constexpr mqtt_header mqtt_packet_header(std::uint8_t byte){
+    mqtt_header header {};
+    header.byte = byte;
+    return header;
+    
+};
 
 [[nodiscard]]
 mqtt_ack mqtt_packet_ack(std::uint8_t header_byte, std::uint16_t packet_id);

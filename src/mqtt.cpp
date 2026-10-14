@@ -82,6 +82,40 @@ unpack_handlers {
 namespace MQTT {
 
 [[nodiscard]]
+mqtt_ack mqtt_packet_ack(std::uint8_t header_byte, std::uint16_t packet_id){
+    mqtt_ack ack;
+    ack.header.byte = header_byte;
+    ack.packet_id = packet_id;
+    return ack;
+}
+
+[[nodiscard]]
+mqtt_connack mqtt_packet_connack(std::uint8_t header_byte,
+                                 std::uint8_t flags_byte,
+                                 std::vector<std::uint8_t> return_code)
+{
+    mqtt_connack connack {};
+    connack.header.byte = header_byte;
+    connack.byte = flags_byte;
+    connack.return_code = return_code;
+
+    return connack;
+}
+
+[[nodiscard]]
+mqtt_suback mqtt_packet_suback(std::uint8_t header_byte,
+                               std::uint8_t packet_id,
+                               std::vector<std::uint_t> return_codes)
+{
+    mqtt_suback suback {}
+    suback.header.byte = header_byte;
+    suback.packet_id = packet_id;
+    suback.return_codes = std::move(return_codes);
+
+    return suback;
+}
+
+[[nodiscard]]
 int mqtt_encode_length
 (std::vector<std::uint8_t>& output, std::size_t remaining_length)
 {
