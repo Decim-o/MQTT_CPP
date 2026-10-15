@@ -69,7 +69,7 @@ unpack_handlers {
     unpack_mqtt_ack,          // 6  PUBREL
     unpack_mqtt_ack,          // 7  PUBCOMP
     unpack_mqtt_subscribe,    // 8  SUBSCRIBE
-    nullptr,                  // 9  SUBACK
+nullptr,                  // 9  SUBACK
     unpack_mqtt_unsubscribe,  // 10 UNSUBSCRIBE
     nullptr,                  // 11 UNSUBACK
     nullptr,                  // 12 PINGREQ
@@ -113,6 +113,22 @@ mqtt_suback mqtt_packet_suback(std::uint8_t header_byte,
     suback.return_codes = std::move(return_codes);
 
     return suback;
+}
+
+[[nodiscard]]
+mqtt_suback mqtt_packet_publish(std::uint8_t header_byte,
+                                std::uint8_t packet_id,
+                                std::string topic,
+                                std::vector<std::uint8_t> payload)
+{
+    mqtt_publish publish {};
+
+    publish.header.byte = header_byte;
+    publish.packet_id = packet_id;
+    publish.topic = topic;
+    publish.payload = std::move(payload);
+
+    return publish;
 }
 
 [[nodiscard]]
