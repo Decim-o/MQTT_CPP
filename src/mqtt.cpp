@@ -69,7 +69,7 @@ unpack_handlers {
     unpack_mqtt_ack,          // 6  PUBREL
     unpack_mqtt_ack,          // 7  PUBCOMP
     unpack_mqtt_subscribe,    // 8  SUBSCRIBE
-nullptr,                  // 9  SUBACK
+    nullptr,                  // 9  SUBACK
     unpack_mqtt_unsubscribe,  // 10 UNSUBSCRIBE
     nullptr,                  // 11 UNSUBACK
     nullptr,                  // 12 PINGREQ
@@ -125,11 +125,30 @@ mqtt_suback mqtt_packet_publish(std::uint8_t header_byte,
 
     publish.header.byte = header_byte;
     publish.packet_id = packet_id;
-    publish.topic = topic;
+    publish.topic = std::move(topic);
     publish.payload = std::move(payload);
 
     return publish;
 }
+
+using mqtt_pack_handler = std::vector<std::uint8_t>(*)(const mqtt_packet&);
+// disconnect & reserve?
+constexpr std::array<mqtt_pack_handlet, 13> pack_handlers{{
+    nullptr, // 0
+    nullptr, // CONNECT
+    pack_mqtt_connack,
+    pack_mqtt_publish,
+    pack_mqtt_ack, // puback
+    pack_mqtt_ack, // pubrec
+    pack_mqtt_ack, // pubrel
+    pack_mqtt_ack, // pubcomp,
+    nullptr,       // subscribe
+    pack_mqtt_suback, // suback
+    nullptr, //unsubscribe
+    pack_mqtt_ack, // unsuback
+    nullptr, // pingreq
+
+}}
 
 [[nodiscard]]
 int mqtt_encode_length
