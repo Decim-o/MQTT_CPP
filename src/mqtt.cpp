@@ -37,12 +37,11 @@ std::size_t unpack_mqtt_ack(
         MQTT::mqtt_packet& packet);
 
 
-
-std::uint8_t* pack_mqtt_header(const MQTT::mqtt_header& header);
-std::uint8_t* pack_mqtt_ack(const MQTT::mqtt_packet& packet);
-std::uint8_t* pack_mqtt_connack(const MQTT::mqtt_packet& packet);
-std::uint8_t* pack_mqtt_suback(const MQTT::mqtt_packet& packet);
-std::uint8_t* pack_mqtt_publish(const MQTT::mqtt_packet& packet);
+std::vector<std::uint8_t> pack_mqtt_header(const MQTT::mqtt_header& header);
+std::vector<std::uint8_t> pack_mqtt_ack(const MQTT::mqtt_packet& packet);
+std::vector<std::uint8_t> pack_mqtt_connack(const MQTT::mqtt_packet& packet);
+std::vector<std::uint8_t> pack_mqtt_suback(const MQTT::mqtt_packet& packet);
+std::vector<std::uint8_t> pack_mqtt_publish(const MQTT::mqtt_packet& packet);
 
 /*
  * A shared signature lets the dispatcher call any unpacker through this table.
@@ -59,7 +58,7 @@ using mqtt_unpack_handler = std::size_t (*)(
  * Null entries represent unsupported types or packets handled directly.
  */
 constexpr std::array<mqtt_unpack_handler, 15>
-unpack_handlers {
+unpack_handlers{
     nullptr,                  // 0  RESERVED
     unpack_mqtt_connect,      // 1  CONNECT
     nullptr,                  // 2  CONNACK
@@ -76,6 +75,26 @@ unpack_handlers {
     nullptr,                  // 13 PINGRESP
     nullptr                   // 14 DISCONNECT
 };
+
+
+using mqtt_pack_handler = std::vector<std::uint8_t>(*)(const mqtt_packet&);
+// disconnect  14& reserve 15?
+constexpr std::array<mqtt_pack_handler, 13> pack_handlers{{
+    nullptr, // 0
+    nullptr, // CONNECT
+    pack_mqtt_connack,
+    pack_mqtt_publish,
+    pack_mqtt_ack, // puback
+    pack_mqtt_ack, // pubrec
+    pack_mqtt_ack, // pubrel
+    pack_mqtt_ack, // pubcomp,
+    nullptr,       // subscribe
+    pack_mqtt_suback, // suback
+    nullptr, //unsubscribe
+    pack_mqtt_ack, // unsuback
+    nullptr, // pingreq
+
+}};
 
 }
 
@@ -131,24 +150,6 @@ mqtt_suback mqtt_packet_publish(std::uint8_t header_byte,
     return publish;
 }
 
-using mqtt_pack_handler = std::vector<std::uint8_t>(*)(const mqtt_packet&);
-// disconnect & reserve?
-constexpr std::array<mqtt_pack_handlet, 13> pack_handlers{{
-    nullptr, // 0
-    nullptr, // CONNECT
-    pack_mqtt_connack,
-    pack_mqtt_publish,
-    pack_mqtt_ack, // puback
-    pack_mqtt_ack, // pubrec
-    pack_mqtt_ack, // pubrel
-    pack_mqtt_ack, // pubcomp,
-    nullptr,       // subscribe
-    pack_mqtt_suback, // suback
-    nullptr, //unsubscribe
-    pack_mqtt_ack, // unsuback
-    nullptr, // pingreq
-
-}}
 
 [[nodiscard]]
 int mqtt_encode_length
@@ -266,6 +267,9 @@ int unpack_mqtt_packet(
     );
 }
 
+
+
+                                           
 } // namespace MQTT
 
 namespace {
