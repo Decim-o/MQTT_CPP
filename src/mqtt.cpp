@@ -43,6 +43,24 @@ std::vector<std::uint8_t> pack_mqtt_connack(const MQTT::mqtt_packet& packet);
 std::vector<std::uint8_t> pack_mqtt_suback(const MQTT::mqtt_packet& packet);
 std::vector<std::uint8_t> pack_mqtt_publish(const MQTT::mqtt_packet& packet);
 
+// helper function
+std::vector<std::uint8_t>
+make_fixed_header(std::uint8_t header_byte,
+                  std::size_t remaining_length)
+{
+    if(remaining_length > MAX_REMAINING_LENGTH){
+        throw std::length_error("MQTT packet too large");
+    }
+
+    std::vector<std::uint8_t> output;
+    output.reserve(1 + MAX_LEN_BYTES + remaining_length);
+    output.push_back(header_byte);
+
+    MQTT_mqtt_encode_length(output, remaining_length);
+
+    return output;
+}
+
 /*
  * A shared signature lets the dispatcher call any unpacker through this table.
  */
@@ -51,6 +69,7 @@ using mqtt_unpack_handler = std::size_t (*)(
     const MQTT::mqtt_header&,
     MQTT::mqtt_packet&
 );
+
 
 
 /*
@@ -66,6 +85,7 @@ unpack_handlers{
     unpack_mqtt_ack,          // 4  PUBACK
     unpack_mqtt_ack,          // 5  PUBREC
     unpack_mqtt_ack,          // 6  PUBREL
+    )
     unpack_mqtt_ack,          // 7  PUBCOMP
     unpack_mqtt_subscribe,    // 8  SUBSCRIBE
     nullptr,                  // 9  SUBACK
