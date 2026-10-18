@@ -98,7 +98,7 @@ constexpr std::array<mqtt_pack_handler, 13> pack_handlers{{
 
 }
 
-namespace MQTT {
+namespace MQTT{
 
 [[nodiscard]]
 mqtt_ack mqtt_packet_ack(std::uint8_t header_byte, std::uint16_t packet_id){
@@ -162,7 +162,6 @@ int mqtt_encode_length
         return 0;
     }
     do{
-
         std::uint8_t digit =
             static_cast<std::uint8_t>(remaining_length % 128);
 
@@ -208,26 +207,19 @@ int unpack_mqtt_packet(
     const std::uint8_t* buffer,
     mqtt_packet& packet)
 {
-    if (buffer == nullptr) {
+    if(buffer == nullptr){
         return 0;
     }
 
-    /*
-     * The first byte selects the unpacker and carries flags needed by it.
-     */
+    
+    // The first byte selects the unpacker and carries flags needed by it.
     mqtt_header header {};
     header.byte = *buffer;
-
-    /*
-     * Unpackers expect to start at Remaining Length, after the type byte.
-     */
     ++buffer;
 
     const auto type = header.type();
 
-    /*
-     * These packet types have no variable header or payload to unpack.
-     */
+    //These packet types have no variable header or payload to unpack.
     if (type == packet_type::DISCONNECT ||
         type == packet_type::PINGREQ ||
         type == packet_type::PINGRESP)
@@ -241,9 +233,7 @@ int unpack_mqtt_packet(
             type
         );
 
-    /*
-     * A received type can exceed the table, so check before indexing it.
-     */
+    // A received type can exceed the table, so check before indexing it.
     if (index >= unpack_handlers.size()) {
         return 0;
     }
@@ -251,10 +241,8 @@ int unpack_mqtt_packet(
     const auto handler =
         unpack_handlers[index];
 
-    /*
-     * Unsupported entries must not be called as function pointers.
-     */
-    if (handler == nullptr) {
+     // unsupported entries must not be called as function pointers.
+    if(handler == nullptr){
         return 0;
     }
 
@@ -325,13 +313,11 @@ std::size_t unpack_mqtt_publish(
     publish.header = header;
 
     // Decoding advances buffer past the variable-size Remaining Length field.
-
     const auto remaining_length = static_cast<std::size_t>(
             MQTT::mqtt_decode_length(buffer)
         );
 
     const std::uint8_t* variable_header_start = buffer;
-
     publish.topic = MQTT::unpack_string16(buffer);
 
     /* QoS 1 and QoS 2 PUBLISH packets contain a
@@ -388,14 +374,14 @@ std::size_t unpack_mqtt_subscribe(
 
     std::size_t remaining_bytes = remaining_length;
 
-    if (remaining_bytes < sizeof(std::uint16_t)) {
+    if(remaining_bytes < sizeof(std::uint16_t)){
         return 0;
     }
 
     subscribe.packet_id = MQTT::unpack_u16(buffer);
     remaining_bytes -= sizeof(std::uint16_t);
 
-    while (remaining_bytes > 0) {
+    while(remaining_bytes > 0){
         // A SUBSCRIBE entry needs at minimum:
         // 2-byte topic length + 1-byte QoS.
         if (remaining_bytes <
@@ -405,7 +391,6 @@ std::size_t unpack_mqtt_subscribe(
         }
 
         const std::uint8_t* topic_start = buffer;
-
         std::string topic = MQTT::unpack_string16(buffer);
 
         // Count the length prefix too, so the next tuple starts at the right byte.
@@ -472,7 +457,6 @@ std::size_t unpack_mqtt_unsubscribe(
         }
 
         const std::uint8_t* topic_start = buffer;
-
         std::string topic = MQTT::unpack_string16(buffer);
 
         const auto topic_field_length =
@@ -483,7 +467,6 @@ std::size_t unpack_mqtt_unsubscribe(
         }
 
         remaining_bytes -= topic_field_length;
-
         unsubscribe.tuples.push_back(std::move(topic));
     }
 
@@ -504,9 +487,8 @@ std::size_t unpack_mqtt_ack(
         MQTT::mqtt_decode_length(buffer)
     );
 
-    /*
-     * These ACK types need a packet identifier to match the acknowledged message.
-     */
+    
+    // These ACK types need a packet identifier to match the acknowledged message.
     if (remaining_length < sizeof(std::uint16_t)) {
         return 0;
     }
