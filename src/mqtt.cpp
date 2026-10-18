@@ -61,15 +61,13 @@ make_fixed_header(std::uint8_t header_byte,
     return output;
 }
 
-/*
- * A shared signature lets the dispatcher call any unpacker through this table.
- */
+
+// A  shared signature lets the dispatcher call any unpacker through this table.
 using mqtt_unpack_handler = std::size_t (*)(
     const std::uint8_t*,
     const MQTT::mqtt_header&,
     MQTT::mqtt_packet&
 );
-
 
 
 /*
@@ -85,7 +83,6 @@ unpack_handlers{
     unpack_mqtt_ack,          // 4  PUBACK
     unpack_mqtt_ack,          // 5  PUBREC
     unpack_mqtt_ack,          // 6  PUBREL
-    )
     unpack_mqtt_ack,          // 7  PUBCOMP
     unpack_mqtt_subscribe,    // 8  SUBSCRIBE
     nullptr,                  // 9  SUBACK
@@ -101,18 +98,18 @@ using mqtt_pack_handler = std::vector<std::uint8_t>(*)(const mqtt_packet&);
 // disconnect  14& reserve 15?
 constexpr std::array<mqtt_pack_handler, 13> pack_handlers{{
     nullptr, // 0
-    nullptr, // CONNECT
+    nullptr,          // CONNECT
     pack_mqtt_connack,
     pack_mqtt_publish,
-    pack_mqtt_ack, // puback
-    pack_mqtt_ack, // pubrec
-    pack_mqtt_ack, // pubrel
-    pack_mqtt_ack, // pubcomp,
-    nullptr,       // subscribe
+    pack_mqtt_ack,    // puback
+    pack_mqtt_ack,    // pubrec
+    pack_mqtt_ack,    // pubrel
+    pack_mqtt_ack,    // pubcomp,
+    nullptr,          // subscribe
     pack_mqtt_suback, // suback
-    nullptr, //unsubscribe
-    pack_mqtt_ack, // unsuback
-    nullptr, // pingreq
+    nullptr,          //unsubscribe
+    pack_mqtt_ack,    // unsuback
+    nullptr,          // pingreq
 
 }};
 
@@ -464,15 +461,15 @@ std::size_t unpack_mqtt_unsubscribe(
 
     std::size_t remaining_bytes = remaining_length;
 
-    if (remaining_bytes < sizeof(std::uint16_t)) {
+    if(remaining_bytes < sizeof(std::uint16_t)){
         return 0;
     }
 
     unsubscribe.packet_id = MQTT::unpack_u16(buffer);
     remaining_bytes -= sizeof(std::uint16_t);
 
-    while (remaining_bytes > 0) {
-        if (remaining_bytes < sizeof(std::uint16_t)) {
+    while(remaining_bytes > 0){
+        if(remaining_bytes < sizeof(std::uint16_t)){
             return 0;
         }
 
@@ -482,7 +479,7 @@ std::size_t unpack_mqtt_unsubscribe(
         const auto topic_field_length =
             static_cast<std::size_t>(buffer - topic_start);
 
-        if (topic_field_length > remaining_bytes) {
+        if(topic_field_length > remaining_bytes){
             return 0;
         }
 
@@ -509,7 +506,7 @@ std::size_t unpack_mqtt_ack(
 
     
     // These ACK types need a packet identifier to match the acknowledged message.
-    if (remaining_length < sizeof(std::uint16_t)) {
+    if(remaining_length < sizeof(std::uint16_t)){
         return 0;
     }
 
