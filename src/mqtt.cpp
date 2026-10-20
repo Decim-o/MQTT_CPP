@@ -43,32 +43,6 @@ std::vector<std::uint8_t> pack_mqtt_connack(const MQTT::mqtt_packet& packet);
 std::vector<std::uint8_t> pack_mqtt_suback(const MQTT::mqtt_packet& packet);
 std::vector<std::uint8_t> pack_mqtt_publish(const MQTT::mqtt_packet& packet);
 
-// helper function
-std::vector<std::uint8_t>
-make_fixed_header(std::uint8_t header_byte,
-                  std::size_t remaining_length)
-{
-    if(remaining_length > MAX_REMAINING_LENGTH){
-        throw std::length_error("MQTT packet too large");
-    }
-
-    std::vector<std::uint8_t> output;
-    output.reserve(1 + MAX_LEN_BYTES + remaining_length);
-    output.push_back(header_byte);
-
-    MQTT_mqtt_encode_length(output, remaining_length);
-
-    return output;
-}
-
-
-// A  shared signature lets the dispatcher call any unpacker through this table.
-using mqtt_unpack_handler = std::size_t (*)(
-    const std::uint8_t*,
-    const MQTT::mqtt_header&,
-    MQTT::mqtt_packet&
-);
-
 
 /*
  * Packet type values match table indices, so dispatch needs no search.
@@ -280,8 +254,8 @@ int unpack_mqtt_packet(
 namespace {
 
 std::size_t unpack_mqtt_connect(const std::uint8_t* buffer,
-                       const MQTT::mqtt_header& header,
-                       MQTT::mqtt_packet& packet)
+                                const MQTT::mqtt_header& header,
+                                MQTT::mqtt_packet& packet)
 {
     MQTT::mqtt_connect connect {};
     connect.header = header;
@@ -515,6 +489,48 @@ std::size_t unpack_mqtt_ack(
     packet = ack;
 
     return remaining_length;
+}
+
+
+// helper function
+std::vector<std::uint8_t>
+make_fixed_header(std::uint8_t header_byte,
+                  std::size_t remaining_length)
+{
+    if(remaining_length > MAX_REMAINING_LENGTH){
+        throw std::length_error("MQTT packet too large");
+    }
+
+    std::vector<std::uint8_t> output;
+    output.reserve(1 + MAX_LEN_BYTES + remaining_length);
+    output.push_back(header_byte);
+
+    MQTT_mqtt_encode_length(output, remaining_length);
+
+    return output;
+}
+
+
+// A  shared signature lets the dispatcher call any unpacker through this table.
+using mqtt_unpack_handler = std::size_t (*)(
+    const std::uint8_t*,
+    const MQTT::mqtt_header&,
+    MQTT::mqtt_packet&
+);
+
+
+void append_u16(std::vector<std::uint8_t>& output,
+                std::uint16_t value)
+{
+    output.push_back(static_cast<std::uint8_t>(value >> 8));
+    output.push_back(static_cast<std::uint8_t>(value & 0xFF));
+}
+
+void append_bytes(std::vector<std::uint8_t>& output,
+                  const std::vector<std::uint8_t>& bytes)
+{
+    output.insert(output.end(), bytes.begin(), bytes.end());
+    
 }
 
 
