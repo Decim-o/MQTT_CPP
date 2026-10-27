@@ -1,5 +1,5 @@
 #ifndef NETWORK_HPP
-#ifndef NETWORK_HPP
+#define NETWORK_HPP 
 
 
 #include <cstddef>
@@ -10,10 +10,25 @@
 
 namespace Network{
 
-    enum class SocketFamily {
+enum class SocketFamily {
     Unix,
     Inet
 };
+
+class file_d {
+public:
+    file_d(int fd = -1) : m_fd(fd) {}
+
+    fild_d(file_d& other) = delete;
+    file_d(file_d&& other) noexcept;
+
+    fild_d& operator=(file_d& other) = delete;
+    file_d& operator=(file_d&& other) noexcept;
+
+    ~file_d();
+private:
+    int m_fd;
+}
 
 int set_nonblocking(int fd);
 int set_tcp_nodelay(int fd);

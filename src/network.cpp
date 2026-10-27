@@ -9,7 +9,29 @@
 
 namespace Network{
 
-namespace{
+file_d::~file_d(){
+    if(m_fd >= 0){
+        ::close(m_fd);
+    }
+}
+
+// move and assignment constructors
+file_d::file_d(file_d&& other) noexcept
+    : m_fd(std::exchange(other.m_fd, -1)) {}
+
+file_d& file_d::file_d::operator=(file_d&& other) noexcept {
+    if(this != other){
+        if(m_fd >= 0){
+            ::close(m_fd);
+        }
+
+        m_fd = std::exchange(other.m_fd, -1);
+    }
+
+    return *this;
+}
+
+
 int create_and_bind_unix(std::string_view sockpath){
     sockaddr_un addr {};
 
@@ -49,4 +71,4 @@ int create_and_bind_unix(std::string_view sockpath){
         
     }
 }
-}
+
