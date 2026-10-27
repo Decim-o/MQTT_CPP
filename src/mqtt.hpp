@@ -31,7 +31,7 @@ inline constexpr std::uint8_t SUBACK_BYTE   { 0x90 };
 inline constexpr std::uint8_t UNSUBACK_BYTE { 0xB0 };
 inline constexpr std::uint8_t PINGRESP_BYTE { 0xD0 };
 
-// message types 
+// message types or control packet types
 enum class packet_type : std::uint8_t {
     CONNECT     = 1, 
     CONNACK     = 2,
@@ -222,6 +222,10 @@ std::uint64_t mqtt_decode_length(const std::uint8_t*& buffer);
 [[nodiscard]]
 int unpack_mqtt_packet(const std::uint8_t* buffer,
                        mqtt_packet& packet);
+
+std::vector<std::uint8_t>
+pack_mqtt_packet(const mqtt_packet& packet,
+                 packet_type type);
 [[nodiscard]]
 std::vector<std::uint8_t> pack_mqtt_packet(const mqtt_packet& packet, 
                                            packet_type type

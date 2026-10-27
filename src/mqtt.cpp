@@ -87,7 +87,7 @@ constexpr std::array<mqtt_pack_handler, 13> pack_handlers{{
 
 }};
 
-}
+} // namespace 
 
 namespace MQTT{
 
@@ -246,9 +246,23 @@ int unpack_mqtt_packet(
     );
 }
 
+std::vector<std::uint8_t> 
+pack_mqtt_packet(const mqtt_packet& packet, packet_type type){
+    if(type == packet_type::PINGREQ || 
+       type == packet_type::PINGRESP ||
+       type == packet_type::DISCONNECT)
+    {
+        const auto* header = std::get_if<mqtt_header>(&packet);
+
+        if(header == nullptr){
+            throw std::invalid_argument("expected header only mqtt packet");
+        }
+        
+        return pack_mqtt_header(*heaer);
+    }
+}
 
 
-                                           
 } // namespace MQTT
 
 namespace {
@@ -533,6 +547,89 @@ void append_bytes(std::vector<std::uint8_t>& output,
     
 }
 
+std::vector<std::uint8_t> pack_mqtt_header(const MQTT::mqtt_header& header){
+    return make_fixed_header(header.byte, 0);
+}
+
+std::vector<std::uint8_t> pack_mqtt_ack(const MQTT::mqtt_packet& packet){
+    const auto* ack = std::get_if<MQTT::mqtt_ack>(&packet); // take note?
+
+    if(ack == nullptr){
+        throw std::invalid_argument("expected mqtt ack packet");
+    }
+
+    auto output = make_fixed_header(ack->header.byte, sizeof(std::uint16_t));
+    append_u16(output, ack->packet_id);
+
+    return output;
+}
+
+std::vector<std::uint8_t> pack_mqtt_connack(const MQTT::mqtt_header& header){
+    const auto* connack = std::get_if<MQTT::mqtt_connack>(&packet);
+
+    if(connack == nullptr){
+        throw std::invalid_argument("expected connack packet");
+    }
+
+    auto output = make_fixed_header(connack->header.byte, 2);
+    output.push_back(connack->byte);
+    output.push_back(connack->return_code);
+
+    return output;
+}
+
+std::vector<std::uint8_t> pack_mqtt_suback(const MQTT::mqtt_header& packet){
+    const auto* suback = std::get_if<MQTT::mqtt_suback>(&packet);
+
+    if(suback == nullptr){
+        throw std::invalid_argument("expected suback packet");
+    }
+
+    const std::size_t remaining_length = 
+        sizeof(std::uint16_t) + suback->return_codes.size();
+
+    auto output = make_fixed_header(suback->header.byte, remaining_length);
+    append_u16(output, suback->packet_id);
+    append_bytes(output, suback->return_codes);
+
+    return output;
+}
+
+std::vector<std::uint8_t> pack_mqtt_publish(const MQTT::mqtt_header& packet){
+    const auto* publish = std::get_if<MQTT::mqtt_publish>(&packet);
+
+    if(publish == nullptr){
+        throw std::invalid_argument("expected publish packet");
+    }
+
+    if(publish->topic.size() > 65535){
+        throw std::length_error("MQTT topic too long");
+    }
+
+    const bool has_packet_id = 
+        publish->header.qos() != MQTT::qos_level::AT_MOST_ONCE;
+
+
+    const std::size_t remaining_length =
+        sizeof(std::uint16_t) + 
+        publish->topic.size() + 
+        publish->payload.size() + 
+        (has_packet_id > sizeof(std::uint16_t) : 0);
+
+    auto output = make_fixed_header(publish->header.byte, remaining_length);
+    append_u16(output, static_cast<std::uint16_t>(publish->topic.size())); // topic len
+    output.insert(output.end(), publish->topic.begin(), publish.topic.end()); // topic name
+
+    // packet id for qos 1 or 2
+    if(has_packet_id){
+        append_u16(output, publish->packet_id);
+    }
+
+    // binary payload
+    append_bytes(output, publish->payload);
+
+    return output
+}
 
 
 } // anonymous namespace
