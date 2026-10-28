@@ -1,6 +1,7 @@
 #include <cstdlib>
 #include <array>
 #include <utility>
+#include <stdexcept>
 
 #include "mqtt.hpp"
 #include "pack.hpp"
@@ -44,31 +45,38 @@ std::vector<std::uint8_t> pack_mqtt_suback(const MQTT::mqtt_packet& packet);
 std::vector<std::uint8_t> pack_mqtt_publish(const MQTT::mqtt_packet& packet);
 
 
+// A  shared signature lets the dispatcher call any unpacker through this table.
+using mqtt_unpack_handler = std::size_t (*)(
+    const std::uint8_t*,
+    const MQTT::mqtt_header&,
+    MQTT::mqtt_packet&
+);
+
+constexpr std::array<mqtt_unpack_handler, 15> unpack_handlers{
+    nullptr,                 // 0: reserved
+    unpack_mqtt_connect,     // 1: connect
+    nullptr,                 // 2: connack
+    unpack_mqtt_publish,     // 3: publish
+    unpack_mqtt_ack,         // 4: puback
+    unpack_mqtt_ack,         // 5: pubrec
+    unpack_mqtt_ack,         // 6: pubrel
+    unpack_mqtt_ack,         // 7: pubcomp
+    unpack_mqtt_subscribe,   // 8: subscribe
+    nullptr,                 // 9: suback
+    unpack_mqtt_unsubscribe, // 10: unsub
+    nullptr,                 // 11: unsuback
+    nullptr,                 // 12: pingreq
+    nullptr,                 // 13: pingresp
+    nullptr,                 // 14: disconnect
+
+};
+
+
 /*
  * Packet type values match table indices, so dispatch needs no search.
  * Null entries represent unsupported types or packets handled directly.
  */
-constexpr std::array<mqtt_unpack_handler, 15>
-unpack_handlers{
-    nullptr,                  // 0  RESERVED
-    unpack_mqtt_connect,      // 1  CONNECT
-    nullptr,                  // 2  CONNACK
-    unpack_mqtt_publish,      // 3  PUBLISH
-    unpack_mqtt_ack,          // 4  PUBACK
-    unpack_mqtt_ack,          // 5  PUBREC
-    unpack_mqtt_ack,          // 6  PUBREL
-    unpack_mqtt_ack,          // 7  PUBCOMP
-    unpack_mqtt_subscribe,    // 8  SUBSCRIBE
-    nullptr,                  // 9  SUBACK
-    unpack_mqtt_unsubscribe,  // 10 UNSUBSCRIBE
-    nullptr,                  // 11 UNSUBACK
-    nullptr,                  // 12 PINGREQ
-    nullptr,                  // 13 PINGRESP
-    nullptr                   // 14 DISCONNECT
-};
-
-
-using mqtt_pack_handler = std::vector<std::uint8_t>(*)(const mqtt_packet&);
+using mqtt_pack_handler = std::vector<std::uint8_t>(*)(const MQTT::mqtt_packet&);
 // disconnect  14& reserve 15?
 constexpr std::array<mqtt_pack_handler, 13> pack_handlers{{
     nullptr, // 0
@@ -102,7 +110,7 @@ mqtt_ack mqtt_packet_ack(std::uint8_t header_byte, std::uint16_t packet_id){
 [[nodiscard]]
 mqtt_connack mqtt_packet_connack(std::uint8_t header_byte,
                                  std::uint8_t flags_byte,
-                                 std::vector<std::uint8_t> return_code)
+                                 std::uint8_t return_code)
 {
     mqtt_connack connack {};
     connack.header.byte = header_byte;
@@ -114,10 +122,10 @@ mqtt_connack mqtt_packet_connack(std::uint8_t header_byte,
 
 [[nodiscard]]
 mqtt_suback mqtt_packet_suback(std::uint8_t header_byte,
-                               std::uint8_t packet_id,
-                               std::vector<std::uint_t> return_codes)
+                               std::uint16_t packet_id,
+                               std::vector<std::uint8_t> return_codes)
 {
-    mqtt_suback suback {}
+    mqtt_suback suback {};
     suback.header.byte = header_byte;
     suback.packet_id = packet_id;
     suback.return_codes = std::move(return_codes);
@@ -126,8 +134,8 @@ mqtt_suback mqtt_packet_suback(std::uint8_t header_byte,
 }
 
 [[nodiscard]]
-mqtt_suback mqtt_packet_publish(std::uint8_t header_byte,
-                                std::uint8_t packet_id,
+mqtt_publish mqtt_packet_publish(std::uint8_t header_byte,
+                                std::uint16_t packet_id,
                                 std::string topic,
                                 std::vector<std::uint8_t> payload)
 {
@@ -258,8 +266,15 @@ pack_mqtt_packet(const mqtt_packet& packet, packet_type type){
             throw std::invalid_argument("expected header only mqtt packet");
         }
         
-        return pack_mqtt_header(*heaer);
+        return pack_mqtt_header(*header);
     }
+
+    const auto index = static_cast<std::size_t>(type);
+    if(index >= pack_handlers.size() || pack_handlers[index] == nullptr){
+        throw std::invalid_argument("unsupported mqtt packet type");
+    }
+
+    return pack_handlers[index](packet);
 }
 
 
@@ -519,18 +534,12 @@ make_fixed_header(std::uint8_t header_byte,
     output.reserve(1 + MAX_LEN_BYTES + remaining_length);
     output.push_back(header_byte);
 
-    MQTT_mqtt_encode_length(output, remaining_length);
+    static_cast<void>(MQTT::mqtt_encode_length(output, remaining_length));
 
     return output;
 }
 
 
-// A  shared signature lets the dispatcher call any unpacker through this table.
-using mqtt_unpack_handler = std::size_t (*)(
-    const std::uint8_t*,
-    const MQTT::mqtt_header&,
-    MQTT::mqtt_packet&
-);
 
 
 void append_u16(std::vector<std::uint8_t>& output,
@@ -564,7 +573,7 @@ std::vector<std::uint8_t> pack_mqtt_ack(const MQTT::mqtt_packet& packet){
     return output;
 }
 
-std::vector<std::uint8_t> pack_mqtt_connack(const MQTT::mqtt_header& header){
+std::vector<std::uint8_t> pack_mqtt_connack(const MQTT::mqtt_packet& packet){
     const auto* connack = std::get_if<MQTT::mqtt_connack>(&packet);
 
     if(connack == nullptr){
@@ -578,7 +587,7 @@ std::vector<std::uint8_t> pack_mqtt_connack(const MQTT::mqtt_header& header){
     return output;
 }
 
-std::vector<std::uint8_t> pack_mqtt_suback(const MQTT::mqtt_header& packet){
+std::vector<std::uint8_t> pack_mqtt_suback(const MQTT::mqtt_packet& packet){
     const auto* suback = std::get_if<MQTT::mqtt_suback>(&packet);
 
     if(suback == nullptr){
@@ -595,7 +604,7 @@ std::vector<std::uint8_t> pack_mqtt_suback(const MQTT::mqtt_header& packet){
     return output;
 }
 
-std::vector<std::uint8_t> pack_mqtt_publish(const MQTT::mqtt_header& packet){
+std::vector<std::uint8_t> pack_mqtt_publish(const MQTT::mqtt_packet& packet){
     const auto* publish = std::get_if<MQTT::mqtt_publish>(&packet);
 
     if(publish == nullptr){
@@ -614,11 +623,11 @@ std::vector<std::uint8_t> pack_mqtt_publish(const MQTT::mqtt_header& packet){
         sizeof(std::uint16_t) + 
         publish->topic.size() + 
         publish->payload.size() + 
-        (has_packet_id > sizeof(std::uint16_t) : 0);
+        (has_packet_id ? sizeof(std::uint16_t) : 0);
 
     auto output = make_fixed_header(publish->header.byte, remaining_length);
     append_u16(output, static_cast<std::uint16_t>(publish->topic.size())); // topic len
-    output.insert(output.end(), publish->topic.begin(), publish.topic.end()); // topic name
+    output.insert(output.end(), publish->topic.begin(), publish->topic.end()); // topic name
 
     // packet id for qos 1 or 2
     if(has_packet_id){
@@ -628,7 +637,7 @@ std::vector<std::uint8_t> pack_mqtt_publish(const MQTT::mqtt_header& packet){
     // binary payload
     append_bytes(output, publish->payload);
 
-    return output
+    return output;
 }
 
 

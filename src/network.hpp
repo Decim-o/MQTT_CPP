@@ -19,16 +19,20 @@ class file_d {
 public:
     file_d(int fd = -1) : m_fd(fd) {}
 
-    fild_d(file_d& other) = delete;
+    file_d(const file_d& other) = delete;
     file_d(file_d&& other) noexcept;
 
-    fild_d& operator=(file_d& other) = delete;
+    file_d& operator=(const file_d& other) = delete;
     file_d& operator=(file_d&& other) noexcept;
+
+    int get() const {
+        return m_fd;
+    }
 
     ~file_d();
 private:
     int m_fd;
-}
+};
 
 int set_nonblocking(int fd);
 int set_tcp_nodelay(int fd);

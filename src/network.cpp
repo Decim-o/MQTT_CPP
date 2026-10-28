@@ -1,6 +1,10 @@
 #include <cstdio>
 #include <cstring>
 #include <cerrno>
+#include <string>
+#include <utility>
+
+#include "network.hpp"
 
 
 #include <sys/un.h>
@@ -19,8 +23,8 @@ file_d::~file_d(){
 file_d::file_d(file_d&& other) noexcept
     : m_fd(std::exchange(other.m_fd, -1)) {}
 
-file_d& file_d::file_d::operator=(file_d&& other) noexcept {
-    if(this != other){
+file_d& file_d::operator=(file_d&& other) noexcept {
+    if(this != &other){
         if(m_fd >= 0){
             ::close(m_fd);
         }

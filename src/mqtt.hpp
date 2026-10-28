@@ -25,7 +25,7 @@ inline constexpr std::uint8_t CONNACK_BYTE  { 0x20 };
 inline constexpr std::uint8_t PUBLISH_BYTE  { 0x30 };
 inline constexpr std::uint8_t PUBACK_BYTE   { 0x40 };
 inline constexpr std::uint8_t PUBREC_BYTE   { 0x50 };
-inline constexpr std::uint8_t PUBREL_BYTE   { 0x60 };
+inline constexpr std::uint8_t PUBREL_BYTE   { 0x62 };
 inline constexpr std::uint8_t PUBCOMP_BYTE  { 0x70 };
 inline constexpr std::uint8_t SUBACK_BYTE   { 0x90 };
 inline constexpr std::uint8_t UNSUBACK_BYTE { 0xB0 };
