@@ -101,7 +101,7 @@ namespace MQTT{
 
 [[nodiscard]]
 mqtt_ack mqtt_packet_ack(std::uint8_t header_byte, std::uint16_t packet_id){
-    mqtt_ack ack;
+    mqtt_ack ack {};
     ack.header.byte = header_byte;
     ack.packet_id = packet_id;
     return ack;

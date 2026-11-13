@@ -60,16 +60,25 @@ enum class qos_level : std::uint8_t {
 struct mqtt_header{
     std::uint8_t byte {};
 
+    /*
+       Retain flag, if a message should be retained, in other words
+       When a messaged is published on a topic, it is saved and future 
+       connecting clients will receive it. It can be updated with another
+       retained message
+    */
     [[nodiscard]] constexpr bool retain() const {
         return byte & 0b0000'0001;
     }
 
+    // QoS level, can be AT_MOST_ONCE, AT_LEAST_ONCE, EXACTLY_ONCE
+    //                      0, 1, 2 respectively
     [[nodiscard]] constexpr qos_level qos() const noexcept {
         return static_cast<qos_level>(
                 (byte >> 1) & 0b0000'0011
         );
     }
 
+    // used when a message is sent more than one time
     [[nodiscard]] constexpr bool dup() const {
         return ((byte >> 3) & 0b0000'0001) != 0;
     }

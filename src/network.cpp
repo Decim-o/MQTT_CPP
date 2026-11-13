@@ -74,6 +74,67 @@ int create_and_bind_unix(std::string_view sockpath){
     return fd;
         
     }
+
+int create_and_bind_tcp(std::string_view host, std::string_view port){
+    addrinfo hints {};
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;
+
+    addrinfo* result = nullptr;
+
+    std::string host_str {host};
+    std::string port_str {port};
+
+    const char* hostname = host.empty() ? nullptr : host_str.c_str();
+
+    int status = getaddrinfo(hostname, port_str.c_str(), &hints, &result);
+
+    if(status != 0){
+        std::fprintf(stderr, "getaddrinfo: %s\n", gai_streroor(status));
+        return -1;
+    }
+
+    int fd = -1;
+
+    for(addrinfo* rp = result; rp != nullptr; rp->ai_next){
+        fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+
+        if(fd == -1){
+            continue;
+        }
+
+        int enable = 1;
+
+        int sock_opt = setsockopt(fd,
+                                  SOL_SOCKET,
+                                  SO_REUSEADDR,
+                                  &enable,
+                                  sizeof(enable));
+        if(sock_opt == -1){
+            std::perror("SO_REUSEADDR");
+            close(fd);
+            fd = -1;
+            continue;
+        }
+
+        if(bind(fd, rp->ai_addr, rp->ai_addrlen) == 0){
+            break;
+        }
+
+        close(fd);
+        fd = -1;
+    }
+
+    freeaddrinfo(result);
+
+    if(fd == -1){
+        std::perror("could not bind");
+    }
+    
+    return fd;
+}
+
 set_nonblocking(int fd){
     int flags = fcntl(fd, F_GETFL, 0);
 

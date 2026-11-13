@@ -15,7 +15,7 @@ enum class SocketFamily {
     Inet
 };
 
-class file_d {
+class FileD{
 public:
     file_d(int fd = -1) : m_fd(fd) {}
 
