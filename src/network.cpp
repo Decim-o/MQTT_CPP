@@ -10,20 +10,24 @@
 #include <sys/un.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 
 namespace Network{
 
-file_d::~file_d(){
+FileD::~FileD(){
     if(m_fd >= 0){
         ::close(m_fd);
     }
 }
 
 // move and assignment constructors
-file_d::file_d(file_d&& other) noexcept
+FileD::FileD(FileD&& other) noexcept
     : m_fd(std::exchange(other.m_fd, -1)) {}
 
-file_d& file_d::operator=(file_d&& other) noexcept {
+FileD& FileD::operator=(FileD&& other) noexcept {
     if(this != &other){
         if(m_fd >= 0){
             ::close(m_fd);
@@ -36,20 +40,20 @@ file_d& file_d::operator=(file_d&& other) noexcept {
 }
 
 
-int create_and_bind_unix(std::string_view sockpath){
+fildD create_and_bind_unix(std::string_view sockpath){
     sockaddr_un addr {};
 
     if(sockpath.empty() || 
             sockpath.size() >= sizeof(addr.sun_path)){
         errno = ENAMETOOLONG;
-        return -1;
+        return FileD{};
     }
     
     // file class mayb
-    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if(fd == -1){
+    FileD fd {socket(AF_UNIX, SOCK_STREAM, 0)};
+    if(fd.get() == -1){
         std::perror("socket error");
-        return -1;
+        return FileD {}; 
     }
 
     addr.sun_family = AF_UNIX;
@@ -57,25 +61,24 @@ int create_and_bind_unix(std::string_view sockpath){
         
     std::string path {sockpath};
 
+    // ENOENT - Error NO ENTry - no such file or directory
     if(unlink(path.c_str()) == -1 && errno != ENOENT){
         std::perror("unlink error");
-        close(fd);
-        return -1;
+        return FileD {}; // destructor activates
     }
 
-    if( bind(fd,
+    if(bind(fd.get(),
              reinterpret_cast<sockaddr*>(&addr),
              sizeof(addr)) == -1){
         std::perror("bind error");
-        close(fd);
-        return -1;
+        return FileD {}; // same here
     }
     
-    return fd;
+    return fd; // transfers ownship to caller
         
     }
 
-int create_and_bind_tcp(std::string_view host, std::string_view port){
+FileD create_and_bind_tcp(std::string_view host, std::string_view port){
     addrinfo hints {};
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
@@ -91,54 +94,52 @@ int create_and_bind_tcp(std::string_view host, std::string_view port){
     int status = getaddrinfo(hostname, port_str.c_str(), &hints, &result);
 
     if(status != 0){
-        std::fprintf(stderr, "getaddrinfo: %s\n", gai_streroor(status));
-        return -1;
+        std::fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
+        return FileD {};
     }
 
-    int fd = -1;
 
-    for(addrinfo* rp = result; rp != nullptr; rp->ai_next){
-        fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+    FileD fd {};
+    for(addrinfo* rp = result; rp != nullptr; rp = rp->ai_next){
+        fd = FileD{socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol)};
 
-        if(fd == -1){
+        if(fd.get() == -1){
             continue;
         }
 
         int enable = 1;
 
-        int sock_opt = setsockopt(fd,
+        int sock_opt = setsockopt(fd.get(),
                                   SOL_SOCKET,
                                   SO_REUSEADDR,
                                   &enable,
                                   sizeof(enable));
         if(sock_opt == -1){
             std::perror("SO_REUSEADDR");
-            close(fd);
             fd = -1;
             continue;
         }
 
-        if(bind(fd, rp->ai_addr, rp->ai_addrlen) == 0){
+        if(bind(fd.get(), rp->ai_addr, rp->ai_addrlen) == 0){
             break;
         }
 
-        close(fd);
-        fd = -1;
+        fd = FileD {};
     }
 
     freeaddrinfo(result);
 
-    if(fd == -1){
+    if(fd.get() == -1){
         std::perror("could not bind");
     }
     
     return fd;
 }
 
-set_nonblocking(int fd){
+int set_nonblocking(int fd){
     int flags = fcntl(fd, F_GETFL, 0);
 
-    if(flahs == -1){
+    if(flags == -1){
         std::perror("fcntl F_GETFL");
         return -1;
     }

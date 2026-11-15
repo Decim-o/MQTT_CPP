@@ -17,19 +17,19 @@ enum class SocketFamily {
 
 class FileD{
 public:
-    file_d(int fd = -1) : m_fd(fd) {}
+    FileD(int fd = -1) : m_fd(fd) {}
 
-    file_d(const file_d& other) = delete;
-    file_d(file_d&& other) noexcept;
+    FileD(const FileD& other) = delete;
+    FileD(FileD&& other) noexcept;
 
-    file_d& operator=(const file_d& other) = delete;
-    file_d& operator=(file_d&& other) noexcept;
+    FileD& operator=(const FileD& other) = delete;
+    FileD& operator=(FileD&& other) noexcept;
 
     int get() const {
         return m_fd;
     }
 
-    ~file_d();
+    ~FileD();
 private:
     int m_fd;
 };
