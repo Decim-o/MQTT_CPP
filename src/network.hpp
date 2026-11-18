@@ -36,11 +36,11 @@ private:
 
 int set_nonblocking(int fd);
 int set_tcp_nodelay(int fd);
-int create_and_bind(std::string_view host, 
+FileD create_and_bind(std::string_view host, 
                     std::string_view port, 
                     SocketFamily family);
 
-int make_listen(std::string_view host,
+FileD make_listen(std::string_view host,
                 std::string_view port,
                 SocketFamily family,
                 int backlog);

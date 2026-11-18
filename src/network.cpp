@@ -40,7 +40,7 @@ FileD& FileD::operator=(FileD&& other) noexcept {
 }
 
 
-fildD create_and_bind_unix(std::string_view sockpath){
+fileD create_and_bind_unix(std::string_view sockpath){
     sockaddr_un addr {};
 
     if(sockpath.empty() || 
@@ -99,7 +99,9 @@ FileD create_and_bind_tcp(std::string_view host, std::string_view port){
     }
 
 
+    int last_error = EADDRNOTAVAIL;
     FileD fd {};
+
     for(addrinfo* rp = result; rp != nullptr; rp = rp->ai_next){
         fd = FileD{socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol)};
 
@@ -116,7 +118,7 @@ FileD create_and_bind_tcp(std::string_view host, std::string_view port){
                                   sizeof(enable));
         if(sock_opt == -1){
             std::perror("SO_REUSEADDR");
-            fd = -1;
+            fd = FileD {};
             continue;
         }
 
@@ -124,12 +126,14 @@ FileD create_and_bind_tcp(std::string_view host, std::string_view port){
             break;
         }
 
+        last_error = errno;
         fd = FileD {};
     }
 
     freeaddrinfo(result);
 
     if(fd.get() == -1){
+        errno = last_error;
         std::perror("could not bind");
     }
     
@@ -155,6 +159,42 @@ int set_tcp_nodelay(int fd){
     int enable = 1;
 
     return setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &enable, sizeof(enable));
+}
+
+FileD create_and_bind(std::string_view host, 
+                      std::string_view port, 
+                      SocketFamily family)
+{
+    if(family == SocketFamily::Unix){
+        return create_and_bind_unix(host);
+    }
+    else{
+        return create_and_bind_tcp(host, port);
+    }
+}
+
+FileD make_listen(std::string_view host,
+                  std::string_view port,
+                  SocketFamily family,
+                  int backlog)
+{
+    FileD fd {create_and_bind(host, port, family)};
+
+    if(fd.get() == -1){
+        return FileD {};
+    }
+
+    if(set_nonblocking(fd.get())  == -1){
+        return FileD {};
+    }
+
+    if(listen(fd.get(), backlog)){
+        std::perror("listen");
+        return FileD {};
+    }
+
+    return FileD
+
 }
 
 
