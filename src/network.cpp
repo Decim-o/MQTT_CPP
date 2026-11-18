@@ -197,6 +197,14 @@ FileD make_listen(std::string_view host,
 
 }
 
+int accept_connection(int serversock, SocketFamily family){
+    sockaddr_storage their_addr {};
+    socklen_t addr_size = sizeof(their_addr);
+
+    addr_size = sizeof(their_addr);
+    int new_fd = accept(serversock, reinterpret_cast*>(&their_addr), their_addr);
+}
+
 
 }
 
