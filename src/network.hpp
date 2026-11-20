@@ -45,7 +45,7 @@ FileD make_listen(std::string_view host,
                 SocketFamily family,
                 int backlog);
 
-int accept_connection(int serversock, SocketFamily family);
+FileD accept_connection(int serversock, SocketFamily family);
 
 ssize_t send_bytes(int fd, 
                    const std::uint8_t* buffer, 

@@ -126,7 +126,7 @@ FileD create_and_bind_tcp(std::string_view host, std::string_view port){
             break;
         }
 
-        last_error = errno;
+   last_error = errno;
         fd = FileD {};
     }
 
@@ -197,12 +197,40 @@ FileD make_listen(std::string_view host,
 
 }
 
-int accept_connection(int serversock, SocketFamily family){
+FileD accept_connection(int serversock, SocketFamily family){
     sockaddr_storage their_addr {};
     socklen_t addr_size = sizeof(their_addr);
 
-    addr_size = sizeof(their_addr);
-    int new_fd = accept(serversock, reinterpret_cast*>(&their_addr), their_addr);
+    FileD client {
+        accept(serversock,
+               reinterpret_cast<sockaddr*>(&their_addr),
+               &addr_size
+        )
+    };
+
+    if(client.get() == -1){
+        if(errno == EAGAIN || errno == EWOULDBLOCK){
+            FileD {};
+        }
+
+        std::perror("accept failure");
+        return FileD {};
+    }
+
+   if(set_nonblocking(client.get()) == -1){
+       return FileD {};
+   }
+
+   if(family == SocketFamily::Inet){
+       if(set_tcp_nodelay(client.get() == -1){
+           std::perror("TCP_NODELAY ERROR");
+           return FileD {};
+        }
+    }
+
+
+   return client;
+    
 }
 
 
