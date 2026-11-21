@@ -36,16 +36,16 @@ private:
 
 int set_nonblocking(int fd);
 int set_tcp_nodelay(int fd);
-FileD create_and_bind(std::string_view host, 
+[[nodiscard]] FileD create_and_bind(std::string_view host, 
                     std::string_view port, 
                     SocketFamily family);
 
-FileD make_listen(std::string_view host,
+[[nodiscard]] FileD make_listen(std::string_view host,
                 std::string_view port,
                 SocketFamily family,
                 int backlog);
 
-FileD accept_connection(int serversock, SocketFamily family);
+[[nodiscard]] FileD accept_connection(int serversock, SocketFamily family);
 
 ssize_t send_bytes(int fd, 
                    const std::uint8_t* buffer, 

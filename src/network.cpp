@@ -40,7 +40,7 @@ FileD& FileD::operator=(FileD&& other) noexcept {
 }
 
 
-fileD create_and_bind_unix(std::string_view sockpath){
+FileD create_and_bind_unix(std::string_view sockpath){
     sockaddr_un addr {};
 
     if(sockpath.empty() || 
@@ -193,7 +193,7 @@ FileD make_listen(std::string_view host,
         return FileD {};
     }
 
-    return FileD
+    return fd;
 
 }
 
@@ -210,7 +210,7 @@ FileD accept_connection(int serversock, SocketFamily family){
 
     if(client.get() == -1){
         if(errno == EAGAIN || errno == EWOULDBLOCK){
-            FileD {};
+            return FileD {};
         }
 
         std::perror("accept failure");
@@ -222,7 +222,7 @@ FileD accept_connection(int serversock, SocketFamily family){
    }
 
    if(family == SocketFamily::Inet){
-       if(set_tcp_nodelay(client.get() == -1){
+       if(set_tcp_nodelay(client.get()) == -1){
            std::perror("TCP_NODELAY ERROR");
            return FileD {};
         }
