@@ -5,8 +5,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <string_view>
+#include <functional>
+#include <memory>
+#include <vector>
 
 #include <sys/types.h>
+#include <sys/epoll.h>
+
 
 namespace Network{
 
@@ -33,6 +38,35 @@ public:
 private:
     int m_fd;
 };
+
+class EventLoop;
+struct Closure;
+
+using Callback = = std::function<void(EventLoop&, Closure&)>;
+
+Closure{
+    int fd {-1};
+    std::vector<uint8_t> payload {};
+    Callback call {};
+    
+};
+
+struct PeriodicTask{
+    FileD timer_fd {};
+    Closure closure {};
+};
+
+class EventLoop{
+    EventLoop(int max_events, int timeout);
+
+    EventLoop(const EventLoop&) = delete;
+    EventLoop& operator=(const EventLoop&) = delete;
+
+    EventLoop(EventLoop&&) = delete;
+    EventLoop& operator=(EventLoop&&) = delete;
+
+    ~EventLoop() = default;
+}
 
 int set_nonblocking(int fd);
 int set_tcp_nodelay(int fd);
