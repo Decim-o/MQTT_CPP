@@ -43,8 +43,11 @@ FileD& FileD::operator=(FileD&& other) noexcept {
 FileD create_and_bind_unix(std::string_view sockpath){
     sockaddr_un addr {};
 
-    if(sockpath.empty() || 
-            sockpath.size() >= sizeof(addr.sun_path)){
+    if(sockpath.empty() || sockpath.find('\0') != std::string_view::npos){
+        errno = EINVAL;
+        return FileD{};
+    }
+    if(sockpath.size() >= sizeof(addr.sun_path)){
         errno = ENAMETOOLONG;
         return FileD{};
     }
@@ -59,19 +62,13 @@ FileD create_and_bind_unix(std::string_view sockpath){
     addr.sun_family = AF_UNIX;
     std::memcpy(addr.sun_path, sockpath.data(), sockpath.size());
         
-    std::string path {sockpath};
-
-    // ENOENT - Error NO ENTry - no such file or directory
-    if(unlink(path.c_str()) == -1 && errno != ENOENT){
-        std::perror("unlink error");
-        return FileD {}; // destructor activates
-    }
-
     if(bind(fd.get(),
              reinterpret_cast<sockaddr*>(&addr),
              sizeof(addr)) == -1){
+        const int bind_error = errno;
         std::perror("bind error");
-        return FileD {}; // same here
+        fd = FileD {};
+        errno = bind_error;
     }
     
     return fd; // transfers ownship to caller
@@ -238,10 +235,19 @@ ssize_t send_bytes(int fd,
                    const std::uint8_t* buffer,
                    std::size_t length)
 {
-    // send(int sockfd, const void* msg, int len, int flags)
+#if defined(MSG_NOSIGNAL)
+    constexpr int flags = MSG_NOSIGNAL;
+#else
+    const int enable = 1;
+    if(setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &enable, sizeof(enable)) == -1){
+        return -1;
+    }
+    constexpr int flags = 0;
+#endif
+
     ssize_t bytes_sent {};
     do{
-        bytes_sent = send(fd, buffer, length, 0);
+        bytes_sent = send(fd, buffer, length, flags);
     } while(bytes_sent == -1 && errno == EINTR);
 
     return bytes_sent;
@@ -258,9 +264,6 @@ ssize_t recv_bytes(int fd,
     } while(bytes_received == -1 && errno == EINTR);
 
     return bytes_received;
-    }
 }
 
-
-}
-
+} // namespace Network
