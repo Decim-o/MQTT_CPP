@@ -209,6 +209,7 @@ FileD accept_connection(int serversock, SocketFamily family){
     };
 
     if(client.get() == -1){
+        // errno is set to EGAIN or EWOULDBLOCK if theres no data to be read
         if(errno == EAGAIN || errno == EWOULDBLOCK){
             return FileD {};
         }
@@ -231,6 +232,33 @@ FileD accept_connection(int serversock, SocketFamily family){
 
    return client;
     
+}
+
+ssize_t send_bytes(int fd,
+                   const std::uint8_t* buffer,
+                   std::size_t length)
+{
+    // send(int sockfd, const void* msg, int len, int flags)
+    ssize_t bytes_sent {};
+    do{
+        bytes_sent = send(fd, buffer, length, 0);
+    } while(bytes_sent == -1 && errno == EINTR);
+
+    return bytes_sent;
+}
+
+ssize_t recv_bytes(int fd,
+                   std::uint8_t* buffer,
+                   std::size_t buffer_size)
+{
+    ssize_t bytes_received {};
+
+    do{
+        bytes_received  = recv(fd, buffer, buffer_size, 0);
+    } while(bytes_received == -1 && errno == EINTR);
+
+    return bytes_received;
+    }
 }
 
 
